@@ -13,10 +13,15 @@ const app = express();
 
 // Vite picks the next free port (5173, 5174, 5175, ...) when the default is
 // already in use, so allow any localhost dev port rather than hardcoding one.
-const allowedOriginPattern = /^http:\/\/localhost:\d+$/;
+// Vercel also gives every deploy of this project its own *.vercel.app subdomain,
+// so allow those too instead of hardcoding one preview URL.
+const allowedOriginPatterns = [
+  /^http:\/\/localhost:\d+$/,
+  /^https:\/\/nora-clothing-frontend(-[a-z0-9]+)?(-vishmi-s-projects)?\.vercel\.app$/,
+];
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOriginPattern.test(origin)) {
+    if (!origin || allowedOriginPatterns.some((pattern) => pattern.test(origin))) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
