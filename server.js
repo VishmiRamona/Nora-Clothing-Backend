@@ -14,9 +14,10 @@ const app = express();
 // Vite picks the next free port (5173, 5174, 5175, ...) when the default is
 // already in use, so allow any localhost dev port rather than hardcoding one.
 const allowedOriginPattern = /^http:\/\/localhost:\d+$/;
+const allowedOrigins = ['https://nora-clothing-backend.onrender.com'];
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOriginPattern.test(origin)) {
+    if (!origin || allowedOriginPattern.test(origin) || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
