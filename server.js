@@ -11,18 +11,17 @@ const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 
-// Allow localhost (any port) for development and your Vercel frontend for production
-const allowedOrigins = [
-  /^http:\/\/localhost:\d+$/,           // localhost dev (any port)
-  'https://nora-clothing-frontend-5ie9o8l8k-vishmi-s-projects.vercel.app/'    // your deployed frontend – replace if different
+// Allow localhost (any port) for development and all Vercel preview/production
+// deployments of this project. Vercel changes the hash per deployment so we
+// match the project name prefix rather than one hardcoded URL.
+const allowedOriginPatterns = [
+  /^http:\/\/localhost:\d+$/,
+  /^https:\/\/nora-clothing-frontend(-[a-z0-9]+)*(-vishmi-s-projects)?\.vercel\.app$/,
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.some(pattern => 
-      typeof pattern === 'string' ? pattern === origin : pattern.test(origin)
-    )) {
+    if (!origin || allowedOriginPatterns.some((p) => p.test(origin))) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
