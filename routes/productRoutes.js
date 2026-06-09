@@ -39,6 +39,16 @@ router.get('/bestsellers', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+router.get('/new-arrivals', async (req, res) => {
+  try {
+    const newArrivals = await Product.find({ isNewArrival: true });
+    res.json(newArrivals);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);

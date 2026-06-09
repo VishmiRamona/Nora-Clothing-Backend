@@ -11,12 +11,18 @@ const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 
-// Vite picks the next free port (5173, 5174, 5175, ...) when the default is
-// already in use, so allow any localhost dev port rather than hardcoding one.
-const allowedOriginPattern = /^http:\/\/localhost:\d+$/;
+// Allow localhost (any port) for development and your Vercel frontend for production
+const allowedOrigins = [
+  /^http:\/\/localhost:\d+$/,           // localhost dev (any port)
+  'https://nora-clothing-frontend-5ie9o8l8k-vishmi-s-projects.vercel.app/'    // your deployed frontend – replace if different
+];
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOriginPattern.test(origin)) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(pattern => 
+      typeof pattern === 'string' ? pattern === origin : pattern.test(origin)
+    )) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -24,6 +30,7 @@ app.use(cors({
   },
   credentials: true
 }));
+
 app.use(express.json());
 
 app.use('/api/products', productRoutes);
