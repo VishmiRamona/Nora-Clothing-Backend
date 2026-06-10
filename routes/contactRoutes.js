@@ -1,15 +1,7 @@
 const express = require('express');
-const nodemailer = require('nodemailer');
+const { sendMail } = require('../utils/mailer');
 const ContactMessage = require('../models/ContactMessage');
 const router = express.Router();
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 router.post('/', async (req, res) => {
   try {
@@ -112,14 +104,13 @@ router.post('/', async (req, res) => {
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
       to: 'support.noraonlineclothing@gmail.com',
       subject: `New Contact Message from ${name}`,
       text: `You have received a new message.\n\nName: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,
       html: htmlContent,
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendMail(mailOptions);
     console.log('Email sent successfully');
     res.status(201).json({ message: 'Message sent successfully!' });
   } catch (error) {
