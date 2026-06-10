@@ -3,14 +3,6 @@ const { sendMail } = require('../utils/mailer');
 const ContactMessage = require('../models/ContactMessage');
 const router = express.Router();
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
 router.post('/', async (req, res) => {
   try {
     const { name, email, message } = req.body;
