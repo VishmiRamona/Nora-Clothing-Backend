@@ -4,6 +4,9 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
+// Escape regex special characters so emails can be safely used in a case-insensitive match
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Get all users (admin only)
 router.get('/', authMiddleware, async (req, res) => {
   try {
@@ -17,8 +20,10 @@ router.get('/', authMiddleware, async (req, res) => {
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    const existingUser = await User.findOne({ email });
+    const { name, password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+    const existingUser = await User.findOne({ email: new RegExp(`^${escapeRegex(email)}$`, 'i') });
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
     const user = new User({ name, email, password });
     await user.save();
@@ -36,8 +41,10 @@ router.post('/register', async (req, res) => {
 // Login - returns role
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const { password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
+    if (!email) return res.status(401).json({ message: 'Invalid credentials' });
+    const user = await User.findOne({ email: new RegExp(`^${escapeRegex(email)}$`, 'i') });
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });

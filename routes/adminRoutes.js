@@ -7,10 +7,15 @@ const Order = require('../models/Order');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
+// Escape regex special characters so emails can be safely used in a case-insensitive match
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const admin = await Admin.findOne({ email });
+    const { password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
+    if (!email) return res.status(401).json({ message: 'Invalid credentials' });
+    const admin = await Admin.findOne({ email: new RegExp(`^${escapeRegex(email)}$`, 'i') });
     if (!admin || !(await admin.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
