@@ -115,7 +115,10 @@ router.post('/', async (req, res) => {
     };
 
     sendMail(mailOptions)
-      .then(() => console.log('Email sent successfully'))
+      .then((result) => {
+        if (result.error) console.error('Email error:', result.error);
+        else console.log('Email sent successfully');
+      })
       .catch((error) => console.error('Email error:', error));
   } catch (error) {
     res.status(500).json({ message: error.message });

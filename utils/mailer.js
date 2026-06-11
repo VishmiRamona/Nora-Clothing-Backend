@@ -1,33 +1,21 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER || process.env.EMAIL_USER,
-    pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const sendMail = (mailOptions) => {
-  return transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER || process.env.EMAIL_USER,
-    ...mailOptions,
+// Resend's shared domain works without verifying your own domain, but can
+// only send to the email address you signed up with. Once you verify a
+// domain in Resend, set RESEND_FROM to an address on that domain (e.g.
+// "Nora Clothing <noreply@noraclothing.com>") to send to anyone.
+const DEFAULT_FROM = process.env.RESEND_FROM || 'Nora Clothing <onboarding@resend.dev>';
+
+const sendMail = ({ to, subject, text, html, from }) => {
+  return resend.emails.send({
+    from: from || DEFAULT_FROM,
+    to,
+    subject,
+    text,
+    html,
   });
 };
 
-// Verify SMTP credentials/connection at startup so misconfiguration shows up
-// clearly in the server logs instead of failing silently on every contact submission.
-transporter.verify((error) => {
-  if (error) {
-    console.error('SMTP connection failed:', error.message);
-  } else {
-    console.log('SMTP connection verified — ready to send emails as', transporter.options.auth.user);
-  }
-});
-
-module.exports = { transporter, sendMail };
+module.exports = { sendMail };
