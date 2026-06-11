@@ -20,4 +20,14 @@ const sendMail = (mailOptions) => {
   });
 };
 
+// Verify SMTP credentials/connection at startup so misconfiguration shows up
+// clearly in the server logs instead of failing silently on every contact submission.
+transporter.verify((error) => {
+  if (error) {
+    console.error('SMTP connection failed:', error.message);
+  } else {
+    console.log('SMTP connection verified — ready to send emails as', transporter.options.auth.user);
+  }
+});
+
 module.exports = { transporter, sendMail };
