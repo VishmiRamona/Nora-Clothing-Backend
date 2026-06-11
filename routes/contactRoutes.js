@@ -9,6 +9,10 @@ router.post('/', async (req, res) => {
     const newMessage = new ContactMessage({ name, email, message });
     await newMessage.save();
 
+    // Respond right away — sending the notification email can be slow/hang
+    // (SMTP connection issues), so don't make the user wait on it.
+    res.status(201).json({ message: 'Message sent successfully!' });
+
     // Updated HTML email template with new color scheme
     const htmlContent = `
       <!DOCTYPE html>
@@ -110,12 +114,11 @@ router.post('/', async (req, res) => {
       html: htmlContent,
     };
 
-    await sendMail(mailOptions);
-    console.log('Email sent successfully');
-    res.status(201).json({ message: 'Message sent successfully!' });
+    sendMail(mailOptions)
+      .then(() => console.log('Email sent successfully'))
+      .catch((error) => console.error('Email error:', error));
   } catch (error) {
-    console.error('Email error:', error);
-    res.status(201).json({ message: 'Message saved, but email notification failed.' });
+    res.status(500).json({ message: error.message });
   }
 });
 
