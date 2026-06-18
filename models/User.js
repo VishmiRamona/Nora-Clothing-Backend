@@ -6,10 +6,12 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true },
   isAdmin: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  // ── NEW: Password reset fields ──
+  resetPasswordToken: { type: String, default: null },
+  resetPasswordExpires: { type: Date, default: null }
 });
 
-// ✅ Correct async pre‑save (no 'next')
 userSchema.pre('save', async function() {
   if (this.isModified('password')) {
     this.password = await bcrypt.hash(this.password, 10);
