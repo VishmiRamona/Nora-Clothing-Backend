@@ -1,19 +1,23 @@
 const express = require('express');
-//const { sendMail } = require('../utils/mailer');
+const { Resend } = require('resend');
 const ContactMessage = require('../models/ContactMessage');
 const router = express.Router();
+
+// ── Resend setup ──────────────────────────────────────────────────────────
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 router.post('/', async (req, res) => {
   try {
     const { name, email, message } = req.body;
+
+    // 1. Save to database
     const newMessage = new ContactMessage({ name, email, message });
     await newMessage.save();
 
-    // Respond right away — sending the notification email can be slow/hang
-    // (SMTP connection issues), so don't make the user wait on it.
+    // 2. Respond immediately – don't make the user wait for email
     res.status(201).json({ message: 'Message sent successfully!' });
 
-    // Updated HTML email template with new color scheme
+    // 3. HTML email template (unchanged)
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -107,20 +111,20 @@ router.post('/', async (req, res) => {
       </html>
     `;
 
-    const mailOptions = {
-      to: 'support.noraonlineclothing@gmail.com',
+    // 4. Send email via Resend – no await, fire and forget
+    resend.emails.send({
+      from: 'Nora Clothing <onboarding@resend.dev>', // Change to your verified domain if you have one
+      to: ['support.noraonlineclothing@gmail.com'],
       subject: `New Contact Message from ${name}`,
-      text: `You have received a new message.\n\nName: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,
       html: htmlContent,
-    };
+    }).then(() => {
+      console.log('✅ Contact email sent via Resend');
+    }).catch((error) => {
+      console.error('❌ Resend email error:', error);
+    });
 
-    sendMail(mailOptions)
-      .then((result) => {
-        if (result.error) console.error('Email error:', result.error);
-        else console.log('Email sent successfully');
-      })
-      .catch((error) => console.error('Email error:', error));
   } catch (error) {
+    console.error('Contact form error:', error);
     res.status(500).json({ message: error.message });
   }
 });
