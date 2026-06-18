@@ -14,6 +14,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  socket: {
+    family: 4, // Force IPv4 to avoid potential IPv6 issues
+  }
 });
 
 // ── Helper: escape regex ──────────────────────────────────────────────────
