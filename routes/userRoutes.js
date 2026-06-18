@@ -1,28 +1,13 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
-// ── Nodemailer setup ────────────────────────────────────────────────────────
-const nodemailer = require('nodemailer');
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  socket: {
-    family: 4, // Force IPv4 to avoid potential IPv6 issues
-  }
-});
-
-// ── Helper: escape regex ──────────────────────────────────────────────────
+// Escape regex special characters so emails can be safely used in a case-insensitive match
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// ── Get all users (admin only) ──────────────────────────────────────────────
+// Get all users (admin only)
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const users = await User.find().select('-password').sort({ createdAt: -1 });
@@ -32,7 +17,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// ── Register ────────────────────────────────────────────────────────────────
+// Register
 router.post('/register', async (req, res) => {
   try {
     const { name, password } = req.body;
@@ -53,7 +38,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// ── Login ──────────────────────────────────────────────────────────────────
+// Login - returns role
 router.post('/login', async (req, res) => {
   try {
     const { password } = req.body;
@@ -74,7 +59,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// ── Get current user ──────────────────────────────────────────────────────
+// Get current user (protected)
 router.get('/me', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -85,77 +70,6 @@ router.get('/me', async (req, res) => {
     res.json(user);
   } catch (error) {
     res.status(401).json({ message: 'Invalid token' });
-  }
-});
-
-// ── NEW: Forgot Password ──────────────────────────────────────────────────
-router.post('/forgot-password', async (req, res) => {
-  try {
-    const email = req.body.email?.toLowerCase().trim();
-    if (!email) return res.status(400).json({ message: 'Email is required' });
-
-    const user = await User.findOne({ email: new RegExp(`^${escapeRegex(email)}$`, 'i') });
-    if (!user) {
-      return res.json({ message: 'If that email is registered, a reset link has been sent.' });
-    }
-
-    const token = crypto.randomBytes(20).toString('hex');
-    user.resetPasswordToken = token;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-    await user.save();
-
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const resetUrl = `${frontendUrl}/reset-password/${token}`;
-
-    await transporter.sendMail({
-      to: user.email,
-      subject: 'Password Reset Request – Nora Clothing',
-      html: `
-        <p>Hello ${user.name || 'there'},</p>
-        <p>You requested a password reset. Click the link below to set a new password:</p>
-        <p><a href="${resetUrl}" style="background:#2F4156;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">Reset Password</a></p>
-        <p>If you didn't request this, please ignore this email.</p>
-        <p>This link expires in 1 hour.</p>
-        <p>– Nora Clothing Team</p>
-      `
-    });
-
-    res.json({ message: 'If that email is registered, a reset link has been sent.' });
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again.' });
-  }
-});
-
-// ── NEW: Reset Password ──────────────────────────────────────────────────
-router.post('/reset-password', async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-    if (!token || !newPassword) {
-      return res.status(400).json({ message: 'Token and new password are required.' });
-    }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
-    }
-
-    const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() }
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired reset token.' });
-    }
-
-    user.password = newPassword;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
-    await user.save();
-
-    res.json({ message: 'Password has been reset successfully. You can now log in.' });
-  } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 });
 
