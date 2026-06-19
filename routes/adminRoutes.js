@@ -8,8 +8,6 @@ const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
 const { Resend } = require('resend');
-
-// ── Resend setup ───────────────────────────────────────────────────────────
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Escape regex special characters so emails can be safely used in a case-insensitive match
@@ -24,7 +22,8 @@ router.post('/login', async (req, res) => {
     if (!admin || !(await admin.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    // Token expires in 7 days (reduced 401 errors)
+    const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, message: 'Login successful' });
   } catch (error) {
     res.status(500).json({ message: error.message });
