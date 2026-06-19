@@ -7,11 +7,10 @@ const Order = require('../models/Order');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
-// ── Brevo setup (replaces Resend) ──────────────────────────────────────────
-const SibApiV3Sdk = require('@getbrevo/brevo');
+// ── Brevo (Sendinblue) setup using sib-api-v3-sdk ──────────────────────
+const SibApiV3Sdk = require('sib-api-v3-sdk');
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
-const apiKey = defaultClient.authentications['api-key'];
-apiKey.apiKey = process.env.BREVO_API_KEY;
+defaultClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
 const brevoInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // Escape regex special characters so emails can be safely used in a case-insensitive match
@@ -79,7 +78,7 @@ router.get('/orders', authMiddleware, async (req, res) => {
   }
 });
 
-// ── Reply to a contact message & send email ─────────────────────────────
+// ── Reply to a contact message & send email via Brevo ──────────────────
 router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
   console.log('📨 Reply endpoint called');
   try {
