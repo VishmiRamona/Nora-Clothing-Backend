@@ -183,11 +183,11 @@ router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
               <div class="message-value">${contact.name}</div>
             </div>
             <div class="message-detail">
-              <div class="message-label">Your original message:</div>
+              <div class="message-label">Your message:</div>
               <div class="message-content">${contact.message.replace(/\n/g, '<br>')}</div>
             </div>
             <div class="message-detail">
-              
+              <div class="message-label">Reply:</div>
               <div class="message-content">${message.trim().replace(/\n/g, '<br>')}</div>
             </div>
           </div>
