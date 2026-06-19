@@ -1,10 +1,12 @@
 const express = require('express');
-const { Resend } = require('resend');
 const ContactMessage = require('../models/ContactMessage');
 const router = express.Router();
 
-// ── Resend setup ──────────────────────────────────────────────────────────
-const resend = new Resend(process.env.RESEND_API_KEY);
+// ── Brevo (Sendinblue) setup ─────────────────────────────────────────────
+const SibApiV3Sdk = require('sib-api-v3-sdk');
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+defaultClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+const brevoInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 router.post('/', async (req, res) => {
   try {
@@ -17,7 +19,7 @@ router.post('/', async (req, res) => {
     // 2. Respond immediately – don't make the user wait for email
     res.status(201).json({ message: 'Message sent successfully!' });
 
-    // 3. HTML email template (unchanged)
+    // 3. HTML email template (same as before)
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -111,17 +113,20 @@ router.post('/', async (req, res) => {
       </html>
     `;
 
-    // 4. Send email via Resend – no await, fire and forget
-    resend.emails.send({
-      from: 'Nora Clothing <onboarding@resend.dev>', // Change to your verified domain if you have one
-      to: ['support.noraonlineclothing@gmail.com'],
-      subject: `New Contact Message from ${name}`,
-      html: htmlContent,
-    }).then(() => {
-      console.log('✅ Contact email sent via Resend');
-    }).catch((error) => {
-      console.error('❌ Resend email error:', error);
-    });
+    // 4. Send email via Brevo
+    try {
+      const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+      sendSmtpEmail.sender = { name: 'Nora Clothing', email: 'support@noraclothing.com' };
+      sendSmtpEmail.to = [{ email: 'support.noraonlineclothing@gmail.com' }];
+      sendSmtpEmail.subject = `New Contact Message from ${name}`;
+      sendSmtpEmail.htmlContent = htmlContent;
+
+      await brevoInstance.sendTransacEmail(sendSmtpEmail);
+      console.log('✅ Contact email sent via Brevo');
+    } catch (emailError) {
+      console.error('❌ Brevo email error:', emailError.message);
+      // The message is already saved, so we don't throw an error
+    }
 
   } catch (error) {
     console.error('Contact form error:', error);
