@@ -8,6 +8,8 @@ const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
 const { Resend } = require('resend');
+
+// ── Resend setup ───────────────────────────────────────────────────────────
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Escape regex special characters so emails can be safely used in a case-insensitive match
@@ -75,7 +77,7 @@ router.get('/orders', authMiddleware, async (req, res) => {
   }
 });
 
-// ── NEW: Reply to a contact message & send email ────────────────────────
+// ── Reply to a contact message & send email ─────────────────────────────
 router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -90,32 +92,47 @@ router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Message not found' });
     }
 
-    // Add reply to the replies array
+    // 1. Save reply to database (always succeed)
     const newReply = { message: message.trim(), sentAt: new Date().toISOString() };
     contact.replies = contact.replies || [];
     contact.replies.push(newReply);
     await contact.save();
 
-    // Send email to the user via Resend
-    await resend.emails.send({
-      from: 'Nora Clothing <onboarding@resend.dev>', // Change to your verified domain
-      to: [contact.email],
-      subject: `Re: Your message to Nora Clothing`,
-      html: `
-        <p>Hello ${contact.name},</p>
-        <p>Thank you for reaching out to us. Here is our reply to your message:</p>
-        <blockquote style="background:#f5f5f5;padding:15px;border-left:4px solid #2F4156;margin:10px 0;">
-          ${message.replace(/\n/g, '<br>')}
-        </blockquote>
-        <p>If you have any further questions, feel free to reply to this email.</p>
-        <p>– Nora Clothing Team</p>
-      `
-    });
+    // 2. Attempt to send email (don't block the response if it fails)
+    try {
+      console.log(`📧 Attempting to send reply email to ${contact.email}...`);
+      console.log(`🔑 RESEND_API_KEY is ${process.env.RESEND_API_KEY ? 'set' : 'MISSING'}`);
 
+      const emailResult = await resend.emails.send({
+        from: 'Nora Clothing <onboarding@resend.dev>', // Change to your verified domain
+        to: [contact.email],
+        subject: `Re: Your message to Nora Clothing`,
+        html: `
+          <p>Hello ${contact.name},</p>
+          <p>Thank you for reaching out to us. Here is our reply to your message:</p>
+          <blockquote style="background:#f5f5f5;padding:15px;border-left:4px solid #2F4156;margin:10px 0;">
+            ${message.replace(/\n/g, '<br>')}
+          </blockquote>
+          <p>If you have any further questions, feel free to reply to this email.</p>
+          <p>– Nora Clothing Team</p>
+        `
+      });
+
+      console.log('✅ Reply email sent successfully:', emailResult);
+    } catch (emailError) {
+      // Log the error but don't fail the request – the reply is already saved
+      console.error('❌ Failed to send reply email:', emailError.message);
+      if (emailError.response) {
+        console.error('Resend error details:', emailError.response);
+      }
+      // Optional: you could send a notification to admin that email failed
+    }
+
+    // Always return success to the admin (reply is saved)
     res.json({ reply: newReply });
   } catch (error) {
-    console.error('Reply error:', error);
-    res.status(500).json({ message: 'Failed to send reply' });
+    console.error('Reply handler error:', error);
+    res.status(500).json({ message: 'Failed to process reply. Please try again.' });
   }
 });
 
