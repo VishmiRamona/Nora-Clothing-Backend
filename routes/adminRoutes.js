@@ -7,8 +7,12 @@ const Order = require('../models/Order');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+// ── Brevo setup (replaces Resend) ──────────────────────────────────────────
+const SibApiV3Sdk = require('brevo');
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+const apiKey = defaultClient.authentications['api-key'];
+apiKey.apiKey = process.env.BREVO_API_KEY;
+const brevoInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // Escape regex special characters so emails can be safely used in a case-insensitive match
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -22,7 +26,6 @@ router.post('/login', async (req, res) => {
     if (!admin || !(await admin.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    // Token expires in 7 days (reduced 401 errors)
     const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, message: 'Login successful' });
   } catch (error) {
@@ -102,8 +105,8 @@ router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
     await contact.save();
     console.log('✅ Reply saved to database');
 
-    // 2. Send reply email
-    console.log(`📧 Sending email to ${contact.email}...`);
+    // 2. Send reply email via Brevo
+    console.log(`📧 Sending email to ${contact.email} via Brevo...`);
     const replyHtml = `
       <!DOCTYPE html>
       <html>
@@ -198,17 +201,18 @@ router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
     `;
 
     try {
-      const result = await resend.emails.send({
-        from: 'Nora Clothing <onboarding@resend.dev>',
-        to: [contact.email],
-        subject: `Re: Your message to Nora Clothing`,
-        html: replyHtml,
-      });
-      console.log('✅ Email sent successfully:', result);
+      const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+      sendSmtpEmail.sender = { name: 'Nora Clothing', email: 'support@noraclothing.com' };
+      sendSmtpEmail.to = [{ email: contact.email }];
+      sendSmtpEmail.subject = `Re: Your message to Nora Clothing`;
+      sendSmtpEmail.htmlContent = replyHtml;
+
+      const result = await brevoInstance.sendTransacEmail(sendSmtpEmail);
+      console.log('✅ Reply email sent via Brevo:', result);
     } catch (emailError) {
-      console.error('❌ Resend error:', emailError.message);
+      console.error('❌ Brevo error:', emailError.message);
       if (emailError.response) {
-        console.error('❌ Resend response:', JSON.stringify(emailError.response, null, 2));
+        console.error('❌ Brevo response:', JSON.stringify(emailError.response, null, 2));
       }
     }
 
