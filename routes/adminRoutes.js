@@ -8,7 +8,7 @@ const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
 // ── Brevo setup (replaces Resend) ──────────────────────────────────────────
-const SibApiV3Sdk = require('brevo');
+const SibApiV3Sdk = require('@getbrevo/brevo');
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
 const apiKey = defaultClient.authentications['api-key'];
 apiKey.apiKey = process.env.BREVO_API_KEY;
