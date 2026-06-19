@@ -113,10 +113,10 @@ router.post('/', async (req, res) => {
       </html>
     `;
 
-    // 4. Send email via Brevo
+    // 4. Send email via Brevo – sender MUST be verified in Brevo
     try {
       const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-      sendSmtpEmail.sender = { name: 'Nora Clothing', email: 'support@noraclothing.com' };
+      sendSmtpEmail.sender = { name: 'Nora Clothing', email: 'support.noraonlineclothing@gmail.com' }; // <-- changed to verified email
       sendSmtpEmail.to = [{ email: 'support.noraonlineclothing@gmail.com' }];
       sendSmtpEmail.subject = `New Contact Message from ${name}`;
       sendSmtpEmail.htmlContent = htmlContent;
