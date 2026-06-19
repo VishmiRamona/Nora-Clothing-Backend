@@ -187,7 +187,7 @@ router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
               <div class="message-content">${contact.message.replace(/\n/g, '<br>')}</div>
             </div>
             <div class="message-detail">
-              <div class="message-label">Our reply:</div>
+              
               <div class="message-content">${message.trim().replace(/\n/g, '<br>')}</div>
             </div>
           </div>
