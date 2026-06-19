@@ -79,9 +79,11 @@ router.get('/orders', authMiddleware, async (req, res) => {
 
 // ── Reply to a contact message & send email ─────────────────────────────
 router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
+  console.log('📨 Reply endpoint called');
   try {
     const { id } = req.params;
     const { message } = req.body;
+    console.log(`📝 Replying to message ID: ${id}`);
 
     if (!message || !message.trim()) {
       return res.status(400).json({ message: 'Reply message is required' });
@@ -89,16 +91,20 @@ router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
 
     const contact = await ContactMessage.findById(id);
     if (!contact) {
+      console.log('❌ Contact not found');
       return res.status(404).json({ message: 'Message not found' });
     }
+    console.log(`👤 Contact: ${contact.name} (${contact.email})`);
 
     // 1. Save reply to database
     const newReply = { message: message.trim(), sentAt: new Date().toISOString() };
     contact.replies = contact.replies || [];
     contact.replies.push(newReply);
     await contact.save();
+    console.log('✅ Reply saved to database');
 
-    // 2. Send reply email with the same styling as the contact form notification
+    // 2. Send reply email
+    console.log(`📧 Sending email to ${contact.email}...`);
     const replyHtml = `
       <!DOCTYPE html>
       <html>
@@ -122,7 +128,7 @@ router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
           }
           .email-header {
-            background-color: #2F4156;  /* Navy */
+            background-color: #2F4156;
             padding: 20px;
             text-align: center;
           }
@@ -141,7 +147,7 @@ router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
           }
           .message-label {
             font-weight: bold;
-            color: #567C8D;  /* Teal */
+            color: #567C8D;
             font-size: 16px;
             margin-bottom: 4px;
           }
@@ -192,17 +198,25 @@ router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
       </html>
     `;
 
-    await resend.emails.send({
-      from: 'Nora Clothing <onboarding@resend.dev>', // Change to your verified domain
-      to: [contact.email],
-      subject: `Re: Your message to Nora Clothing`,
-      html: replyHtml,
-    });
+    try {
+      const result = await resend.emails.send({
+        from: 'Nora Clothing <onboarding@resend.dev>',
+        to: [contact.email],
+        subject: `Re: Your message to Nora Clothing`,
+        html: replyHtml,
+      });
+      console.log('✅ Email sent successfully:', result);
+    } catch (emailError) {
+      console.error('❌ Resend error:', emailError.message);
+      if (emailError.response) {
+        console.error('❌ Resend response:', JSON.stringify(emailError.response, null, 2));
+      }
+    }
 
     res.json({ reply: newReply });
   } catch (error) {
-    console.error('Reply error:', error);
-    res.status(500).json({ message: 'Failed to send reply' });
+    console.error('❌ Reply handler error:', error);
+    res.status(500).json({ message: 'Failed to process reply' });
   }
 });
 
