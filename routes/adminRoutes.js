@@ -7,6 +7,9 @@ const Order = require('../models/Order');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 // Escape regex special characters so emails can be safely used in a case-insensitive match
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -69,6 +72,50 @@ router.get('/orders', authMiddleware, async (req, res) => {
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// ── NEW: Reply to a contact message & send email ────────────────────────
+router.post('/contacts/:id/reply', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: 'Reply message is required' });
+    }
+
+    const contact = await ContactMessage.findById(id);
+    if (!contact) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    // Add reply to the replies array
+    const newReply = { message: message.trim(), sentAt: new Date().toISOString() };
+    contact.replies = contact.replies || [];
+    contact.replies.push(newReply);
+    await contact.save();
+
+    // Send email to the user via Resend
+    await resend.emails.send({
+      from: 'Nora Clothing <onboarding@resend.dev>', // Change to your verified domain
+      to: [contact.email],
+      subject: `Re: Your message to Nora Clothing`,
+      html: `
+        <p>Hello ${contact.name},</p>
+        <p>Thank you for reaching out to us. Here is our reply to your message:</p>
+        <blockquote style="background:#f5f5f5;padding:15px;border-left:4px solid #2F4156;margin:10px 0;">
+          ${message.replace(/\n/g, '<br>')}
+        </blockquote>
+        <p>If you have any further questions, feel free to reply to this email.</p>
+        <p>– Nora Clothing Team</p>
+      `
+    });
+
+    res.json({ reply: newReply });
+  } catch (error) {
+    console.error('Reply error:', error);
+    res.status(500).json({ message: 'Failed to send reply' });
   }
 });
 
